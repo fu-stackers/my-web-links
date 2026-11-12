@@ -1,1 +1,46 @@
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/500.css";
+@import "@fontsource/inter/600.css";
+@import "@fontsource/inter/700.css";
 @import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  --color-page: #ffffff;
+  --color-surface: #f6f4ee;
+  --color-border: #dedbd2;
+  --color-text-main: #1a1a1a;
+  --color-text-muted: #5c5c5c;
+  --color-accent: #a8841a;
+  --color-accent-text: #ffffff;
+}
+
+.dark {
+  --color-page: #0a0a0a;
+  --color-surface: #161616;
+  --color-border: #2a2a2a;
+  --color-text-main: #f2f2f2;
+  --color-text-muted: #a8a8a8;
+  --color-accent: #d4af37;
+  --color-accent-text: #0a0a0a;
+}
+
+@theme {
+  --font-sans: var(--font-sans);
+  --color-page: var(--color-page);
+  --color-surface: var(--color-surface);
+  --color-border: var(--color-border);
+  --color-text-main: var(--color-text-main);
+  --color-muted: var(--color-text-muted);
+  --color-accent: var(--color-accent);
+  --color-accent-text: var(--color-accent-text);
+}
+
+/* Ensure smooth transitions but respect reduced motion */
+@media (prefers-reduced-motion: no-preference) {
+  * {
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+}

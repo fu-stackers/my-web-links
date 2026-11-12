@@ -25,3 +25,43 @@ export async function deleteSite(id: string): Promise<void> {
   const sites = await getSites();
   await saveSites(sites.filter((s) => s.id !== id));
 }
+const CATEGORIES_KEY = "categories";
+const THEME_KEY = "theme";
+
+export const DEFAULT_CATEGORIES = [
+  "Design",
+  "Development",
+  "Tools",
+  "Learning",
+  "Inspiration",
+  "News",
+  "Entertainment",
+  "Shopping",
+  "Other",
+];
+
+export async function getCategories(): Promise<string[]> {
+  const result = await chrome.storage.local.get(CATEGORIES_KEY);
+  return (result[CATEGORIES_KEY] as string[] | undefined) ?? DEFAULT_CATEGORIES;
+}
+
+export async function addCategory(name: string): Promise<string[]> {
+  const categories = await getCategories();
+  if (categories.some((c) => c.toLowerCase() === name.toLowerCase())) {
+    return categories;
+  }
+  const updated = [...categories, name];
+  await chrome.storage.local.set({ [CATEGORIES_KEY]: updated });
+  return updated;
+}
+
+export type Theme = "system" | "light" | "dark";
+
+export async function getTheme(): Promise<Theme> {
+  const result = await chrome.storage.local.get(THEME_KEY);
+  return (result[THEME_KEY] as Theme | undefined) ?? "system";
+}
+
+export async function setTheme(theme: Theme): Promise<void> {
+  await chrome.storage.local.set({ [THEME_KEY]: theme });
+}
