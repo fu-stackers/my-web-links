@@ -8,9 +8,11 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "watch": "vite build --watch"
+    "watch": "vite build --watch",
+    "package": "npm run build && powershell -Command \"Add-Type -AssemblyName System.IO.Compression.FileSystem; if (Test-Path 'LinkTrove-Extension.zip') { Remove-Item 'LinkTrove-Extension.zip' -Force }; [System.IO.Compression.ZipFile]::CreateFromDirectory((Resolve-Path 'dist').Path, (Join-Path (Get-Location).Path 'LinkTrove-Extension.zip'))\""
   },
   "dependencies": {
+    "@fontsource/cormorant-garamond": "^5.3.0",
     "@fontsource/inter": "^5.3.0",
     "@tailwindcss/vite": "^4.3.5",
     "lucide-react": "^1.72.0",

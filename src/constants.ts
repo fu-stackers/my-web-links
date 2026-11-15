@@ -1,1 +1,1 @@
-export const APP_NAME = "Keepsite";
+export const APP_NAME = "LinkTrove";

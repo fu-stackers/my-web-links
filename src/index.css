@@ -1,3 +1,5 @@
+@import "@fontsource/cormorant-garamond/600.css";
+@import "@fontsource/cormorant-garamond/700.css";
 @import "@fontsource/inter/400.css";
 @import "@fontsource/inter/500.css";
 @import "@fontsource/inter/600.css";
@@ -7,28 +9,33 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  --color-page: #ffffff;
-  --color-surface: #f6f4ee;
-  --color-border: #dedbd2;
-  --color-text-main: #1a1a1a;
-  --color-text-muted: #5c5c5c;
-  --color-accent: #a8841a;
+  --font-sans: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-serif: "Cormorant Garamond", Georgia, serif;
+  
+  /* Modern Clean Light Theme (Linear / Notion inspired) */
+  --color-page: #f9f9fb;
+  --color-surface: #ffffff;
+  --color-border: #e4e4e7;
+  --color-text-main: #09090b;
+  --color-text-muted: #64748b;
+  --color-accent: #b45309;
   --color-accent-text: #ffffff;
 }
 
 .dark {
+  /* Luxury Obsidian Dark Theme */
   --color-page: #0a0a0a;
-  --color-surface: #161616;
-  --color-border: #2a2a2a;
-  --color-text-main: #f2f2f2;
-  --color-text-muted: #a8a8a8;
+  --color-surface: #141414;
+  --color-border: #262626;
+  --color-text-main: #f4f4f5;
+  --color-text-muted: #94a3b8;
   --color-accent: #d4af37;
   --color-accent-text: #0a0a0a;
 }
 
 @theme {
   --font-sans: var(--font-sans);
+  --font-serif: var(--font-serif);
   --color-page: var(--color-page);
   --color-surface: var(--color-surface);
   --color-border: var(--color-border);
@@ -38,9 +45,32 @@
   --color-accent-text: var(--color-accent-text);
 }
 
-/* Ensure smooth transitions but respect reduced motion */
-@media (prefers-reduced-motion: no-preference) {
-  * {
-    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  }
+/* Glass & Card styles for both Light and Dark themes */
+.glass-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.03);
+}
+
+.dark .glass-card {
+  background: rgba(20, 20, 20, 0.7);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: none;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-muted);
 }

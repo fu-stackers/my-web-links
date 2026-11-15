@@ -55,6 +55,15 @@ export async function addCategory(name: string): Promise<string[]> {
   return updated;
 }
 
+export async function deleteCategory(name: string): Promise<string[]> {
+  const categories = await getCategories();
+  const updated = categories.filter(
+    (c) => c.toLowerCase() !== name.toLowerCase(),
+  );
+  await chrome.storage.local.set({ [CATEGORIES_KEY]: updated });
+  return updated;
+}
+
 export type Theme = "system" | "light" | "dark";
 
 export async function getTheme(): Promise<Theme> {

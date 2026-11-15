@@ -16,6 +16,7 @@ import { APP_NAME } from "../constants";
 import {
   addCategory,
   addSite,
+  deleteCategory,
   getCategories,
   getSites,
   updateSite,
@@ -54,6 +55,8 @@ export default function Popup() {
   const [isSaving, setIsSaving] = useState(false);
   const [faviconError, setFaviconError] = useState(false);
   const [isAddingCategory, setIsAddingCategory] = useState(false);
+  const [showCategoryPrompt, setShowCategoryPrompt] = useState(false);
+  const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
 
   // Input refs for auto-focusing the first useful field
   const titleInputRef = useRef<HTMLInputElement>(null);
@@ -79,9 +82,6 @@ export default function Popup() {
   useEffect(() => {
     getCategories().then((cats) => {
       setCategories(cats);
-      if (cats.length > 0) {
-        setCategory((current) => current || cats[0]);
-      }
     });
 
     chrome.tabs.query({ active: true, currentWindow: true }).then(([t]) => {
@@ -139,6 +139,25 @@ export default function Popup() {
     setIsAddingCategory(false);
   }
 
+  // Handle deleting an unwanted category
+  async function handleConfirmDeleteCategory(catName: string) {
+    if (category.toLowerCase() === catName.toLowerCase()) {
+      setCategory("");
+    }
+    const allSites = await getSites();
+    const sitesInCat = allSites.filter(
+      (s) => s.category.toLowerCase() === catName.toLowerCase(),
+    );
+    if (sitesInCat.length > 0) {
+      for (const s of sitesInCat) {
+        await updateSite({ ...s, category: "Other" });
+      }
+    }
+    const updated = await deleteCategory(catName);
+    setCategories(updated);
+    setCategoryToDelete(null);
+  }
+
   // Handle saving or updating bookmark
   async function handleSave(skipCheck = false) {
     if (isSaving || status === "checking") return;
@@ -155,7 +174,8 @@ export default function Popup() {
       );
     }
     if (!category) {
-      return setError("Pick a category.");
+      setShowCategoryPrompt(true);
+      return;
     }
 
     if (!useCurrent && !skipCheck) {
@@ -199,12 +219,33 @@ export default function Popup() {
     }
   }
 
-  // Open the extension dashboard in a new tab
-  const openDashboard = () =>
-    chrome.tabs.create({ url: chrome.runtime.getURL("dashboard.html") });
+  // Open the extension dashboard or switch to it if already open
+  const openDashboard = async () => {
+    const dashboardUrl = chrome.runtime.getURL("dashboard.html");
+    try {
+      const tabs = await chrome.tabs.query({});
+      const existingTab = tabs.find(
+        (t) => t.url && (t.url === dashboardUrl || t.url.startsWith(dashboardUrl)),
+      );
+
+      if (existingTab && existingTab.id !== undefined) {
+        await chrome.tabs.update(existingTab.id, { active: true });
+        if (existingTab.windowId !== undefined) {
+          await chrome.windows.update(existingTab.windowId, { focused: true });
+        }
+        window.close();
+        return;
+      }
+    } catch {
+      // Fallback to creating a new tab if query fails
+    }
+
+    await chrome.tabs.create({ url: dashboardUrl });
+    window.close();
+  };
 
   return (
-    <div className="w-[440px] bg-page text-text-main font-sans p-4 flex flex-col gap-2.5 antialiased selection:bg-accent/20">
+    <div className="w-110 bg-page text-text-main font-sans p-4 flex flex-col gap-2.5 antialiased selection:bg-accent/20 rounded-8xl">
       {/* 1. Header: Gem icon + Extension Name + Actions (Dashboard & Theme switch) */}
       <header className="flex items-center justify-between pb-2.5 border-b border-border">
         <div className="flex items-center gap-2.5">
@@ -257,9 +298,7 @@ export default function Popup() {
             Use current page
           </span>
           {!canUseCurrent && tab ? (
-            <p className="text-[10px] text-muted">
-              This page can't be saved.
-            </p>
+            <p className="text-[10px] text-muted">This page can't be saved.</p>
           ) : (
             <p className="text-[10px] text-muted">
               {useCurrent
@@ -297,7 +336,7 @@ export default function Popup() {
               <img
                 src={tab.favIconUrl}
                 alt=""
-                className="w-6 h-6 rounded-full object-contain shrink-0 bg-page/50 p-0.5 border border-border"
+                className="w-6 h-6 rounded-full object-contain shrink-0 bg-zinc-100 dark:bg-zinc-800/80 p-0.5 border border-border [filter:drop-shadow(0_0_1px_rgba(0,0,0,0.5))] dark:[filter:drop-shadow(0_0_1px_rgba(255,255,255,0.5))]"
                 onError={() => setFaviconError(true)}
               />
             ) : (
@@ -378,28 +417,51 @@ export default function Popup() {
         </section>
       )}
 
-      {/* 4. "Pick a category" and Category chips */}
+      {/* 4. Category chips */}
       <section className="space-y-1.5">
         <label className="block text-xs font-semibold text-text-main">
-          Pick a category
+          Category
         </label>
         <div className="flex flex-wrap gap-1.5 items-center">
           {categories.map((c) => {
             const isSelected = c === category;
+            const isProtected = c.toLowerCase() === "other" && categories.length <= 1;
             return (
-              <button
-                key={c}
-                type="button"
-                onClick={() => setCategory(c)}
-                className={`text-xs px-2.5 py-1 rounded-full transition-all duration-150 flex items-center gap-1 cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent ${
-                  isSelected
-                    ? "bg-accent text-accent-text font-medium shadow-xs"
-                    : "bg-surface hover:bg-border/60 text-muted hover:text-text-main border border-border"
-                }`}
-              >
-                {isSelected && <Check className="w-3 h-3 stroke-[2.5]" />}
-                <span>{c}</span>
-              </button>
+              <div key={c} className="group/chip relative inline-flex items-center">
+                <button
+                  type="button"
+                  onClick={() => setCategory(c)}
+                  className={`text-xs ${
+                    !isProtected ? "pl-2.5 pr-5" : "px-2.5"
+                  } py-1 rounded-full transition-all duration-150 flex items-center gap-1 cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent ${
+                    isSelected
+                      ? "bg-accent text-accent-text font-medium shadow-xs"
+                      : "bg-surface hover:bg-border/60 text-muted hover:text-text-main border border-border"
+                  }`}
+                >
+                  {isSelected && <Check className="w-3 h-3 stroke-[2.5]" />}
+                  <span>{c}</span>
+                </button>
+
+                {/* Subtle delete '×' icon on hover */}
+                {!isProtected && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCategoryToDelete(c);
+                    }}
+                    title={`Delete "${c}" category`}
+                    className={`absolute right-1 p-0.5 rounded-full transition-all cursor-pointer ${
+                      isSelected
+                        ? "text-accent-text/70 hover:text-accent-text hover:bg-black/10 opacity-60 hover:opacity-100"
+                        : "text-muted hover:text-rose-500 hover:bg-black/5 dark:hover:bg-white/10 opacity-0 group-hover/chip:opacity-100"
+                    }`}
+                  >
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                )}
+              </div>
             );
           })}
 
@@ -458,18 +520,18 @@ export default function Popup() {
         </div>
       </section>
 
-      {/* 5. "Why are you saving this? (optional)" textarea */}
-      <section className="space-y-1">
+      {/* 5. Personal Note (clean & simple) */}
+      <section className="space-y-1.5">
         <label
           htmlFor="site-note-input"
           className="block text-xs font-semibold text-text-main"
         >
-          Why are you saving this? (optional)
+          Note <span className="text-[10px] font-normal text-muted">(optional)</span>
         </label>
         <textarea
           id="site-note-input"
           rows={2}
-          placeholder="Add context, project references, or thoughts..."
+          placeholder="Add a note or thoughts..."
           value={note}
           onChange={(e) => setNote(e.target.value)}
           className="w-full px-3 py-1.5 text-xs bg-surface border border-border rounded-xl text-text-main placeholder:text-muted focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent resize-none transition-all duration-150"
@@ -544,7 +606,9 @@ export default function Popup() {
             <Check className="w-3.5 h-3.5 shrink-0" />
             <span>
               Saved to{" "}
-              <strong className="font-semibold text-text-main">{category}</strong>
+              <strong className="font-semibold text-text-main">
+                {category}
+              </strong>
             </span>
           </div>
           <button
@@ -556,6 +620,109 @@ export default function Popup() {
             <ArrowRight className="w-3 h-3" />
           </button>
         </section>
+      )}
+
+      {/* Small Category Reminder Popup Dialog */}
+      {showCategoryPrompt && (
+        <div
+          onClick={() => setShowCategoryPrompt(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-surface border border-border w-full max-w-[270px] rounded-2xl p-4 shadow-2xl space-y-3 text-center animate-in zoom-in-95 duration-150 relative"
+          >
+            <button
+              type="button"
+              onClick={() => setShowCategoryPrompt(false)}
+              aria-label="Close"
+              className="absolute top-2.5 right-2.5 text-muted hover:text-text-main p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+
+            <div className="w-9 h-9 rounded-2xl bg-accent/15 text-accent flex items-center justify-center mx-auto">
+              <Gem className="w-4 h-4" />
+            </div>
+
+            <div className="space-y-0.5">
+              <h3 className="text-xs font-semibold text-text-main">
+                Pick a Category
+              </h3>
+              <p className="text-[11px] text-muted leading-tight">
+                Please select a category to save this site.
+              </p>
+            </div>
+
+            {/* Category chips directly inside the small popup */}
+            <div className="flex flex-wrap gap-1.5 justify-center pt-1 max-h-28 overflow-y-auto">
+              {categories.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => {
+                    setCategory(c);
+                    setShowCategoryPrompt(false);
+                  }}
+                  className="text-xs px-2.5 py-1 rounded-full bg-surface hover:bg-accent hover:text-accent-text text-text-main border border-border transition-all cursor-pointer font-medium"
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowCategoryPrompt(false)}
+              className="w-full py-1.5 px-3 bg-accent/15 text-accent hover:bg-accent hover:text-accent-text text-xs font-medium rounded-xl transition-all cursor-pointer"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Category Confirmation Dialog */}
+      {categoryToDelete && (
+        <div
+          onClick={() => setCategoryToDelete(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-surface border border-border w-full max-w-[270px] rounded-2xl p-4 shadow-2xl space-y-3 text-center animate-in zoom-in-95 duration-150"
+          >
+            <div className="w-9 h-9 rounded-2xl bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto">
+              <X className="w-4 h-4" />
+            </div>
+
+            <div className="space-y-1">
+              <h3 className="text-xs font-semibold text-text-main">
+                Delete "{categoryToDelete}"?
+              </h3>
+              <p className="text-[11px] text-muted leading-relaxed">
+                Any sites saved under this category will be moved to "Other".
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setCategoryToDelete(null)}
+                className="flex-1 py-1.5 px-3 border border-border text-text-main hover:bg-border/30 text-xs font-medium rounded-xl transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleConfirmDeleteCategory(categoryToDelete)}
+                className="flex-1 py-1.5 px-3 bg-rose-500 text-white hover:bg-rose-600 text-xs font-semibold rounded-xl transition-colors cursor-pointer shadow-xs"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -8,8 +8,8 @@ export default defineConfig({
   build: {
     rollupOptions: {
       input: {
-        popup: resolve(__dirname, "popup.html"),
-        dashboard: resolve(__dirname, "dashboard.html"),
+        popup: resolve(import.meta.dirname, "popup.html"),
+        dashboard: resolve(import.meta.dirname, "dashboard.html"),
       },
     },
   },
